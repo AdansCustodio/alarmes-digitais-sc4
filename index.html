@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Registro de Alarmes Digitais MHK (Firebase)</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        .editable-cell {
+            min-width: 100px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            overflow-wrap: break-word;
+        }
+        .editable-cell:hover {
+            background-color: #f3f4f6;
+        }
+        .data-input {
+            width: 100%;
+            border: 1px solid #dc2626;
+            padding: 4px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(220, 38, 38, 0.5);
+            outline: none;
+        }
+        .line-btn {
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border: 1px solid #d1d5db;
+        }
+        .line-btn.active {
+            background-color: #dc2626;
+            color: white;
+            border-color: #dc2626;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .line-btn:hover:not(.active) {
+            background-color: #d1d5db;
+        }
+        .manage-icon {
+            opacity: 0.4;
+            transition: opacity 0.2s;
+        }
+        .manage-icon:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app-container" class="max-w-7xl mx-auto">
+        
+        <div id="open-in-browser-container" class="mb-4">
+            <button id="open-in-browser-btn" class="w-full px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 transform hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center text-sm md:text-base">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z" />
+                    <path d="M4 12a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H4zm1.5-1A1.5 1.5 0 004 12.5v2a1.5 1.5 0 001.5 1.5h2A1.5 1.5 0 009 14.5v-2A1.5 1.5 0 007.5 11h-2z" fill-rule="evenodd" clip-rule="evenodd" />
+                </svg>
+                Abrir no Navegador Padrão
+            </button>
+        </div>
+
+        <header class="mb-6 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm6 2a1 1 0 000 2h2a1 1 0 100-2H9zm-1 5a1 1 0 100 2h4a1 1 0 100-2H8z" clip-rule="evenodd" />
+                </svg>
+                <span id="main-title">Registro de Alarmes Digitais MHK</span>
+            </h1>
+            <p class="text-gray-500 text-sm">
+                Departamento Técnico - MHK <span id="site-context-label">SC2</span>
+            </p>
+        </header>
+
+        <div class="flex flex-col gap-4 mb-6 p-4 bg-white rounded-lg shadow-md">
+            
+            <div id="line-buttons-container" class="flex flex-wrap gap-2 items-center w-full">
+                <span class="text-sm font-medium text-gray-700 whitespace-nowrap pt-1">Visualizar Linha:</span>
+                <div id="line-buttons" class="flex flex-wrap gap-2">
+                    <!-- Botões de linha serão gerados aqui -->
+                </div>
+                <button id="add-line-btn" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition duration-150 flex items-center font-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Nova Linha
+                </button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 w-full justify-between pt-2 border-t border-gray-100">
+                <div class="relative w-full sm:w-1/2">
+                    <input type="text" id="search-input" placeholder="Pesquisar em todas as linhas (Código ou Palavra-Chave)" class="w-full p-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button id="export-csv-btn" class="w-full sm:w-auto px-4 py-2 bg-white text-gray-600 font-semibold rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition duration-150 active:scale-[0.98]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block -mt-0.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Exportar Tudo
+                    </button>
+
+                    <button id="add-row-btn" class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block -mt-0.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Adicionar Registro
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-xl shadow-2xl">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100 sticky top-0">
+                    <tr>
+                        <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider rounded-tl-xl">Linha</th>
+                        <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Data</th>
+                        <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Código</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[250px]">Identificação do Erro</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[300px]">Resolução</th>
+                        <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider rounded-tr-xl">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="alarms-table-body" class="divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="6" class="p-4 text-center text-gray-500">Carregando dados...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 hidden items-center justify-center p-4">
+            <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl transform transition-all">
+                <h3 id="modal-title" class="text-xl font-bold mb-3 text-red-700"></h3>
+                <p id="modal-message" class="mb-4 text-gray-700"></p>
+                <div id="modal-input-container" class="mb-4 hidden">
+                    <input type="password" id="modal-password-input" placeholder="Digite a senha" class="data-input w-full">
+                    <p id="modal-error-message" class="text-red-500 text-sm mt-1 hidden"></p>
+                </div>
+                <div id="modal-text-input-container" class="mb-4 hidden">
+                    <input type="text" id="modal-text-input" placeholder="" class="data-input w-full">
+                </div>
+                <div id="modal-actions" class="flex justify-end gap-3">
+                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-150">Cancelar</button>
+                    <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150">Confirmar</button>
+                </div>
+                <button id="modal-close-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-150 hidden">Fechar</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // === 1. IDENTIFICAÇÃO DO SITE (SC1 vs BA1) ===
+        // Detecta automaticamente com base na URL do GitHub Pages ou do repositório
+        const getSiteContext = () => {
+            const url = window.location.href.toLowerCase();
+            if (url.includes('ba1')) return 'ba1';
+            if (url.includes('sc1')) return 'sc1';
+            return 'sc1'; // Padrão caso não identifique
+        };
+
+        const SITE_ID = getSiteContext();
+        
+        // Atualiza elementos visuais com base no contexto
+        document.getElementById('page-title').textContent = `Registro de Alarmes Digitais MHK ${SITE_ID.toUpperCase()}`;
+        document.getElementById('main-title').textContent = `Registro de Alarmes Digitais MHK ${SITE_ID.toUpperCase()}`;
+        document.getElementById('site-context-label').textContent = SITE_ID.toUpperCase();
+
+        // === 2. CONFIGURAÇÃO FIREBASE ===
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "alarmes-das-digitais-XXXX.firebaseapp.com",
+            projectId: "alarmes-das-digitais-XXXX",
+            storageBucket: "alarmes-das-digitais-XXXX.appspot.com",
+            messagingSenderId: "SEU_ID",
+            appId: "SEU_APP_ID",
+            databaseURL: "https://alarmes-das-digitais-default-rtdb.firebaseio.com"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = app.database();
+        
+        // CAMINHOS DINÂMICOS: Agora cada site salva em sua própria "pasta" no Firebase
+        const alarmsRef = db.ref(`alarms_mhk_${SITE_ID}`); 
+        const linesRef = db.ref(`config_lines_mhk_${SITE_ID}`);
+
+        // Configurações de Senha
+        const EXPORT_PASSWORD = 'admin123';
+        const ADD_PASSWORD = 'exp321'; 
+        
+        let LINES = []; 
+        let alarmsData = [];
+        let currentFilter = ''; 
+        let searchTerm = ''; 
+
+        // === 3. FUNÇÕES DE GESTÃO DE LINHAS (ABAS) ===
+
+        function loadLinesConfig() {
+            linesRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && Array.isArray(data)) {
+                    LINES = data;
+                } else {
+                    LINES = ['Linha 1', 'Linha 2', 'Linha 4', 'Linha 5', 'Linha 6'];
+                    linesRef.set(LINES);
+                }
+                
+                if (!currentFilter || !LINES.includes(currentFilter)) {
+                    currentFilter = LINES[0];
+                }
+                
+                renderLineButtons();
+                renderTable();
+            });
+        }
+
+        function renderLineButtons() {
+            const container = document.getElementById('line-buttons');
+            container.innerHTML = '';
+
+            LINES.forEach((linha, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `flex items-center rounded-lg border transition duration-150 overflow-hidden ${currentFilter === linha ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-gray-200 border-gray-300 text-gray-600 hover:bg-gray-300'}`;
+                
+                const btn = document.createElement('button');
+                btn.className = "px-3 py-1 text-sm font-medium focus:outline-none";
+                btn.textContent = linha;
+                btn.onclick = () => {
+                    currentFilter = linha;
+                    searchTerm = '';
+                    document.getElementById('search-input').value = '';
+                    renderLineButtons();
+                    renderTable();
+                };
+
+                const editBtn = document.createElement('button');
+                editBtn.className = `p-1 manage-icon hover:bg-black hover:bg-opacity-10`;
+                editBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>`;
+                editBtn.onclick = (e) => { e.stopPropagation(); promptRenameLine(index); };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = `p-1 manage-icon hover:bg-black hover:bg-opacity-10`;
+                delBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                    </svg>`;
+                delBtn.onclick = (e) => { e.stopPropagation(); promptDeleteLine(index); };
+
+                wrapper.appendChild(btn);
+                wrapper.appendChild(editBtn);
+                wrapper.appendChild(delBtn);
+                container.appendChild(wrapper);
+            });
+        }
+
+        function promptAddLine() {
+            showModal('Nova Linha', 'Digite o nome da nova aba que deseja criar:', false, () => {
+                const name = document.getElementById('modal-text-input').value.trim();
+                if (name && !LINES.includes(name)) {
+                    LINES.push(name);
+                    linesRef.set(LINES);
+                }
+            }, true, ADD_PASSWORD, true);
+        }
+
+        function promptRenameLine(index) {
+            const oldName = LINES[index];
+            showModal('Renomear Linha', `Digite o novo nome para "${oldName}":`, false, () => {
+                const newName = document.getElementById('modal-text-input').value.trim();
+                if (newName && newName !== oldName) {
+                    LINES[index] = newName;
+                    if (currentFilter === oldName) currentFilter = newName;
+                    linesRef.set(LINES);
+                    updateExistingAlarmsLineName(oldName, newName);
+                }
+            }, true, ADD_PASSWORD, true, oldName);
+        }
+
+        function updateExistingAlarmsLineName(oldName, newName) {
+            const updates = {};
+            alarmsData.forEach(alarm => {
+                if (alarm.linha === oldName) {
+                    updates[`${alarm.firebaseId}/linha`] = newName;
+                }
+            });
+            if (Object.keys(updates).length > 0) {
+                alarmsRef.update(updates);
+            }
+        }
+
+        function promptDeleteLine(index) {
+            const name = LINES[index];
+            showModal('Excluir Aba', `Tem certeza que deseja excluir a aba "${name}"? Os registros desta linha NÃO serão apagados, mas ficarão ocultos até que uma aba com o mesmo nome seja criada.`, true, () => {
+                LINES.splice(index, 1);
+                linesRef.set(LINES);
+            }, true, ADD_PASSWORD);
+        }
+
+        // === 4. FUNÇÕES FIREBASE ALARMES ===
+
+        function loadAndListenForData() {
+            alarmsRef.on('value', (snapshot) => {
+                const firebaseData = snapshot.val();
+                if (firebaseData) {
+                    alarmsData = Object.keys(firebaseData).map(key => ({
+                        firebaseId: key, 
+                        ...firebaseData[key]
+                    }));
+                    
+                    alarmsData.sort((a, b) => {
+                        if (a.data < b.data) return 1;
+                        if (a.data > b.data) return -1;
+                        return a.createdAt < b.createdAt ? 1 : -1;
+                    });
+                } else {
+                    alarmsData = [];
+                }
+                renderTable();
+            });
+        }
+
+        function addAlarm() {
+            const now = new Date();
+            const newAlarm = {
+                linha: currentFilter,
+                data: now.toISOString().substring(0, 10),
+                codigo: 'NOVO',
+                identificacao: 'Descreva o erro aqui',
+                resolucao: 'Descreva a resolução aqui',
+                createdAt: now.toISOString()
+            };
+
+            alarmsRef.push(newAlarm).then(() => {
+                showModal('Sucesso', 'Registro adicionado à ' + currentFilter, false);
+            });
+        }
+
+        function updateAlarmField(firebaseId, field, value) {
+            const updates = {};
+            updates[field] = value;
+            updates.updatedAt = new Date().toISOString();
+            alarmsRef.child(firebaseId).update(updates);
+        }
+
+        function deleteAlarm(firebaseId) {
+            showModal('Excluir Registro', 'Deseja realmente apagar este alarme permanentemente?', true, () => {
+                alarmsRef.child(firebaseId).remove();
+            }, true, ADD_PASSWORD);
+        }
+
+        // === 5. UI E MODAL ===
+
+        const modal = document.getElementById('custom-modal');
+        const modalTextInputContainer = document.getElementById('modal-text-input-container');
+        const modalTextInput = document.getElementById('modal-text-input');
+        const modalPasswordInput = document.getElementById('modal-password-input');
+
+        function showModal(title, message, isConfirm = false, onConfirm = () => {}, needsPassword = false, requiredPassword = EXPORT_PASSWORD, hasTextInput = false, initialText = '') {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            modal.classList.replace('hidden', 'flex');
+
+            modalPasswordInput.value = '';
+            modalTextInput.value = initialText;
+            document.getElementById('modal-error-message').classList.add('hidden');
+            
+            document.getElementById('modal-input-container').classList.toggle('hidden', !needsPassword);
+            modalTextInputContainer.classList.toggle('hidden', !hasTextInput);
+            
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            const closeBtn = document.getElementById('modal-close-btn');
+
+            confirmBtn.onclick = () => {
+                if (needsPassword && modalPasswordInput.value !== requiredPassword) {
+                    const err = document.getElementById('modal-error-message');
+                    err.textContent = 'Senha incorreta.';
+                    err.classList.remove('hidden');
+                    return;
+                }
+                modal.classList.replace('flex', 'hidden');
+                onConfirm();
+            };
+
+            cancelBtn.onclick = () => modal.classList.replace('flex', 'hidden');
+            closeBtn.onclick = () => modal.classList.replace('flex', 'hidden');
+
+            if (isConfirm || needsPassword || hasTextInput) {
+                document.getElementById('modal-actions').classList.remove('hidden');
+                closeBtn.classList.add('hidden');
+            } else {
+                document.getElementById('modal-actions').classList.add('hidden');
+                closeBtn.classList.remove('hidden');
+            }
+        }
+
+        // === 6. RENDERIZAÇÃO E EVENTOS ===
+
+        function startEditing(cell, firebaseId, field, initialValue) {
+            if (cell.querySelector('input, textarea, select')) return;
+
+            const isLongText = field === 'identificacao' || field === 'resolucao';
+            let input;
+
+            if (field === 'linha') {
+                input = document.createElement('select');
+                LINES.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt; o.textContent = opt;
+                    if (opt === initialValue) o.selected = true;
+                    input.appendChild(o);
+                });
+            } else {
+                input = document.createElement(isLongText ? 'textarea' : 'input');
+                if (isLongText) input.rows = 3;
+                else input.type = field === 'data' ? 'date' : 'text';
+                input.value = initialValue;
+            }
+
+            input.className = 'data-input';
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+
+            const save = () => {
+                const val = input.value.trim();
+                if (val !== initialValue) updateAlarmField(firebaseId, field, val);
+                cell.textContent = val;
+                setupCellListeners();
+            };
+
+            input.onblur = save;
+            if (!isLongText) input.onkeydown = (e) => e.key === 'Enter' && save();
+        }
+
+        function setupCellListeners() {
+            document.querySelectorAll('.editable-cell').forEach(cell => {
+                cell.onclick = () => {
+                    const id = cell.getAttribute('data-alarm-id');
+                    const field = cell.getAttribute('data-field');
+                    startEditing(cell, id, field, cell.textContent.trim());
+                };
+            });
+        }
+
+        function renderTable() {
+            const tableBody = document.getElementById('alarms-table-body');
+            const searchLower = searchTerm.toLowerCase();
+            
+            let filtered = alarmsData.filter(alarm => {
+                const matchSearch = searchTerm === '' || 
+                    (alarm.codigo + alarm.identificacao + alarm.resolucao).toLowerCase().includes(searchLower);
+                
+                if (searchTerm !== '') return matchSearch;
+                return alarm.linha === currentFilter;
+            });
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = filtered.map(alarm => `
+                <tr class="hover:bg-gray-50 transition duration-100">
+                    <td class="px-3 py-2 editable-cell text-sm font-medium text-gray-900" data-alarm-id="${alarm.firebaseId}" data-field="linha">${alarm.linha}</td>
+                    <td class="px-3 py-2 editable-cell text-sm text-gray-500" data-alarm-id="${alarm.firebaseId}" data-field="data">${alarm.data}</td>
+                    <td class="px-3 py-2 editable-cell text-sm font-semibold text-gray-900" data-alarm-id="${alarm.firebaseId}" data-field="codigo">${alarm.codigo}</td>
+                    <td class="px-6 py-2 editable-cell text-sm text-gray-500" data-alarm-id="${alarm.firebaseId}" data-field="identificacao">${alarm.identificacao}</td>
+                    <td class="px-6 py-2 editable-cell text-sm text-gray-500" data-alarm-id="${alarm.firebaseId}" data-field="resolucao">${alarm.resolucao}</td>
+                    <td class="px-3 py-2 text-right">
+                        <button onclick="deleteAlarm('${alarm.firebaseId}')" class="text-red-600 hover:text-red-900 p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 100 2v6a1 1 0 102 0V8a1 1 0 00-2 0z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </td>
+                </tr>`).join('');
+            setupCellListeners();
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLinesConfig();
+            loadAndListenForData();
+
+            document.getElementById('search-input').oninput = (e) => {
+                searchTerm = e.target.value.trim();
+                renderTable();
+            };
+
+            document.getElementById('add-row-btn').onclick = () => {
+                showModal('Autorizar Registro', 'Digite a senha para adicionar um novo alarme:', false, addAlarm, true, ADD_PASSWORD);
+            };
+
+            document.getElementById('add-line-btn').onclick = promptAddLine;
+
+            document.getElementById('export-csv-btn').onclick = () => {
+                showModal('Exportar CSV', 'Digite a senha de administrador para exportar:', false, () => {
+                    const headers = ['Linha', 'Data', 'Código', 'Erro', 'Resolução'];
+                    const rows = alarmsData.map(a => [a.linha, a.data, a.codigo, a.identificacao, a.resolucao].join(';'));
+                    const csv = "\uFEFF" + [headers.join(';'), ...rows].join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `alarmes_mhk_${SITE_ID}_${new Date().toISOString().slice(0,10)}.csv`;
+                    link.click();
+                }, true, EXPORT_PASSWORD);
+            };
+
+            document.getElementById('open-in-browser-btn').onclick = () => window.open(window.location.href, '_system');
+        });
+    </script>
+</body>
+</html>
