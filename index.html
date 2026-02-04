@@ -439,6 +439,10 @@
             }
 
             input.className = 'data-input';
+            
+            // Impede a propagação do clique para que a célula não tente reiniciar a edição
+            input.onclick = (e) => e.stopPropagation();
+
             cell.innerHTML = '';
             cell.appendChild(input);
             input.focus();
@@ -447,11 +451,19 @@
                 const val = input.value.trim();
                 if (val !== initialValue) updateAlarmField(firebaseId, field, val);
                 cell.textContent = val;
-                setupCellListeners();
+                // Não precisamos rechamar setupCellListeners aqui, pois o listener na célula permanece
             };
 
             input.onblur = save;
-            if (!isLongText) input.onkeydown = (e) => e.key === 'Enter' && save();
+            
+            if (!isLongText) {
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        // Blur dispara o save automaticamente
+                        input.blur(); 
+                    }
+                };
+            }
         }
 
         function setupCellListeners() {
